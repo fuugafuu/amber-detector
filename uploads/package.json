@@ -1,0 +1,12 @@
+{
+  "name": "amber-detector",
+  "version": "1.0.0",
+  "description": "琥珀検出AI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.3"
+  }
+}
