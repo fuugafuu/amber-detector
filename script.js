@@ -50,3 +50,18 @@ saveBtn.addEventListener("click", () => {
     const model = await loadModel();
     detect(model);
 })();
+async function setupCamera() {
+    const constraints = {
+        video: {
+            facingMode: { exact: "environment" }  // 🔹 背面カメラを指定
+        }
+    };
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+    } catch (error) {
+        console.error("カメラのアクセスに失敗しました。", error);
+        alert("カメラが使用できません。設定を確認してください。");
+    }
+}
