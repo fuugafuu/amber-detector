@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>琥珀検出AI</title>
+    <title>琥珀リアルタイム検出</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>琥珀検出AI</h1>
-    <video id="camera" autoplay playsinline></video>
+    <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <button id="save-btn">保存</button>
-    <p id="status">カメラ起動中...</p>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <div id="controls">
+        <button id="capture">📸 写真撮影</button>
+        <button id="record">🔴 録画開始</button>
+        <button id="stop" disabled>⏹️ 録画停止</button>
+        <a id="download" style="display: none;">📥 ダウンロード</a>
+    </div>
+
+    <script src="utils.js"></script>
     <script src="script.js"></script>
-    <input type="file" id="imageInput" accept="image/*">
-<img id="preview" style="max-width: 100%; display: none;">
 </body>
 </html>
