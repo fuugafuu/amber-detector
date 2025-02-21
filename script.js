@@ -1,17 +1,10 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const captureBtn = document.getElementById("capture");
-const recordBtn = document.getElementById("record");
-const stopBtn = document.getElementById("stop");
-const downloadLink = document.getElementById("download");
-
-let mediaRecorder;
-let recordedChunks = [];
 
 // 📹 カメラ映像を取得（アウトカメラ）
 navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }
+    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
 }).then(stream => {
     video.srcObject = stream;
     video.onloadedmetadata = () => {
@@ -21,104 +14,58 @@ navigator.mediaDevices.getUserMedia({
     };
 }).catch(err => console.error("カメラ取得失敗:", err));
 
-// 🎥 フレームを解析（琥珀検出）
+// 🎥 フレームを解析
 function processVideo() {
-    if (video.readyState === 4) {  // カメラが準備完了している場合のみ実行
+    if (video.readyState === 4) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         detectAmber();
     }
-    setTimeout(processVideo, 100);  // 100msごとに処理（負荷軽減）
+    requestAnimationFrame(processVideo);  // 高速処理
 }
 
-// 🔎 琥珀の特徴（色＋形）を解析
+// 🔎 琥珀の色＋エッジ解析
 function detectAmber() {
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const width = canvas.width, height = canvas.height;
     
-    // 🟡 琥珀っぽい色フィルタ
     const amberPixels = [];
     for (let i = 0; i < imgData.data.length; i += 4) {
         const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
-        if (r > 150 && g > 100 && b < 80) {  // 黄～オレンジ系の色
+        if (r > 160 && g > 110 && b < 90) {  // 🟡 琥珀っぽい色（少し厳しく）
             const x = (i / 4) % width;
             const y = Math.floor((i / 4) / width);
             amberPixels.push({ x, y });
         }
     }
 
-    // 🏴‍☠️ エッジ検出（閾値を高める）
-    const edges = applySobelFilter(imgData, width, height, 120);  // ← しきい値を 120 にUP
+    // 🏴‍☠️ エッジ検出（小さいものをキャッチする）
+    const edges = applySobelFilter(imgData, width, height, 80);  // ← しきい値を 80 に下げる
 
-    // 🎯 琥珀っぽい色＋輪郭が丸いものを抽出
+    // 🎯 色＋エッジがあるものを厳しくフィルタリング
     const filteredPoints = edges.filter(point => 
-        amberPixels.some(p => Math.abs(p.x - point.x) < 10 && Math.abs(p.y - point.y) < 10)
+        amberPixels.some(p => Math.abs(p.x - point.x) < 5 && Math.abs(p.y - point.y) < 5) // 5px以内ならOK
     );
 
     drawBoxes(filteredPoints);
 }
 
-// 🟡 琥珀っぽい部分を黄色い円で囲む
+// 🟡 小さい琥珀を囲む
 function drawBoxes(points) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "yellow";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
 
     points.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 20, 0, Math.PI * 2);  // ← 半径20に変更（小さいノイズを除去）
+        ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);  // ← 小さいものを囲む（半径8px）
         ctx.stroke();
     });
 }
 
-// 📸 写真撮影（タップでスクリーンショット）
-captureBtn.addEventListener("click", () => {
-    const imgUrl = canvas.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = imgUrl;
-    a.download = "capture.png";
-    a.click();
-});
-
-// 🎥 録画開始
-recordBtn.addEventListener("click", () => {
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(video.srcObject);
-    mediaRecorder.ondataavailable = event => recordedChunks.push(event.data);
-    mediaRecorder.onstop = saveRecording;
-    mediaRecorder.start();
-    recordBtn.disabled = true;
-    stopBtn.disabled = false;
-});
-
-// ⏹️ 録画停止
-stopBtn.addEventListener("click", () => {
-    mediaRecorder.stop();
-    recordBtn.disabled = false;
-    stopBtn.disabled = true;
-});
-
-// 📥 録画データをダウンロード
-function saveRecording() {
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    const url = URL.createObjectURL(blob);
-    downloadLink.href = url;
-    downloadLink.download = "recorded_video.webm";
-    downloadLink.style.display = "block";
-    downloadLink.click();
-}
-
 // 🏴‍☠️ Sobelフィルター（エッジ検出）
 function applySobelFilter(imgData, width, height, threshold) {
-    const sobelX = [
-        [-1, 0, 1],
-        [-2, 0, 2],
-        [-1, 0, 1]
-    ];
-    const sobelY = [
-        [-1, -2, -1],
-        [0, 0, 0],
-        [1, 2, 1]
-    ];
+    const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+    const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
 
     const edges = [];
     const gray = new Uint8ClampedArray(width * height);
