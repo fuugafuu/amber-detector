@@ -10,22 +10,24 @@ let mediaRecorder;
 let recordedChunks = [];
 
 // 📹 カメラ映像を取得（アウトカメラ）
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => {
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            processVideo();
-        };
-    })
-    .catch(err => console.error("カメラ取得失敗:", err));
+navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }
+}).then(stream => {
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        processVideo();
+    };
+}).catch(err => console.error("カメラ取得失敗:", err));
 
 // 🎥 フレームを解析（琥珀検出）
 function processVideo() {
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    detectAmber();
-    requestAnimationFrame(processVideo);
+    if (video.readyState === 4) {  // カメラが準備完了している場合のみ実行
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        detectAmber();
+    }
+    setTimeout(processVideo, 100);  // 100msごとに処理（負荷軽減）
 }
 
 // 🔎 琥珀の特徴（色＋形）を解析
@@ -34,7 +36,7 @@ function detectAmber() {
     const width = canvas.width, height = canvas.height;
     
     // エッジ検出（輪郭抽出）
-    const edges = applySobelFilter(imgData, width, height, 60);
+    const edges = applySobelFilter(imgData, width, height, 80); // 閾値80に調整
     
     drawBoxes(edges);
 }
