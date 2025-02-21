@@ -1,65 +1,52 @@
-/* script.js */
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const statusText = document.getElementById('statusText');
+const video = document.getElementById("camera");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const statusText = document.getElementById("status");
+const saveBtn = document.getElementById("save-btn");
 
-async function startCamera() {
+async function setupCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
 }
 
 async function loadModel() {
-    return await tf.loadGraphModel('https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2/default/1');
+    return await cocoSsd.load();
 }
 
-async function detectAmber(model) {
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const tensor = tf.browser.fromPixels(video)
-        .resizeNearestNeighbor([300, 300])
-        .toFloat()
-        .expandDims(0);
-
-    const predictions = await model.executeAsync(tensor);
-    const boxes = predictions[1].arraySync()[0]; // バウンディングボックス
-    const scores = predictions[2].arraySync()[0]; // 信頼度
-    const classes = predictions[3].arraySync()[0]; // クラスID
+async function detect(model) {
+    const predictions = await model.detect(video);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-    let found = false;
-    for (let i = 0; i < boxes.length; i++) {
-        if (scores[i] > 0.5) { // 信頼度50%以上
-            const [ymin, xmin, ymax, xmax] = boxes[i];
-            ctx.strokeStyle = 'red';
+    predictions.forEach(pred => {
+        if (pred.class === "bottle" || pred.class === "stone") {  // 琥珀っぽいもの
+            ctx.strokeStyle = "red";
             ctx.lineWidth = 4;
-            ctx.strokeRect(xmin * canvas.width, ymin * canvas.height, (xmax - xmin) * canvas.width, (ymax - ymin) * canvas.height);
+            ctx.strokeRect(pred.bbox[0], pred.bbox[1], pred.bbox[2], pred.bbox[3]);
 
-            // 一時的に「瓶（bottle）」を琥珀として判定
-            if (classes[i] === 44) { // クラスID 44 = bottle（参考: COCO dataset）
-                found = true;
-            }
+            statusText.innerText = "琥珀を検出しました！";
+            statusText.style.color = "green";
         }
-    }
+    });
 
-    if (found) {
-        statusText.innerText = "琥珀（っぽいもの）が見つかりました！";
-        statusText.style.color = 'green';
-    } else {
-        statusText.innerText = "琥珀は見つかりませんでした...";
-        statusText.style.color = 'red';
-    }
+    requestAnimationFrame(() => detect(model));
 }
 
-async function main() {
-    await startCamera();
+saveBtn.addEventListener("click", () => {
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL("image/png");
+
+    // 画像をローカルに保存
+    const link = document.createElement("a");
+    link.href = imageData;
+    link.download = `amber_${Date.now()}.png`;
+    link.click();
+});
+
+(async function () {
+    await setupCamera();
     const model = await loadModel();
-    setInterval(() => detectAmber(model), 2000);
-}
-
-main();
+    detect(model);
+})();
