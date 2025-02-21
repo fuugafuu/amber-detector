@@ -1,75 +1,90 @@
-const video = document.getElementById("camera");
+const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const statusText = document.getElementById("status");
-const saveBtn = document.getElementById("save-btn");
+const captureBtn = document.getElementById("capture");
+const recordBtn = document.getElementById("record");
+const stopBtn = document.getElementById("stop");
+const downloadLink = document.getElementById("download");
 
-async function setupCamera() {
-    const constraints = {
-        video: {
-            facingMode: { exact: "environment" }  // 🔹 背面カメラを優先
-        }
-    };
+let mediaRecorder;
+let recordedChunks = [];
 
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+// 📹 カメラ映像を取得（アウトカメラ）
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(stream => {
         video.srcObject = stream;
-    } catch (error) {
-        console.error("カメラのアクセスに失敗しました。", error);
-        alert("カメラが使用できません。設定を確認してください。");
-    }
+        video.onloadedmetadata = () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            processVideo();
+        };
+    })
+    .catch(err => console.error("カメラ取得失敗:", err));
+
+// 🎥 フレームを解析（琥珀検出）
+function processVideo() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    detectAmber();
+    requestAnimationFrame(processVideo);
 }
 
-async function loadModel() {
-    return await cocoSsd.load();
+// 🔎 琥珀の特徴（色＋形）を解析
+function detectAmber() {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const width = canvas.width, height = canvas.height;
+    
+    // エッジ検出（輪郭抽出）
+    const edges = applySobelFilter(imgData, width, height, 60);
+    
+    drawBoxes(edges);
 }
 
-async function detect(model) {
-    const predictions = await model.detect(video);
+// 🟡 琥珀を黄色い円で囲む
+function drawBoxes(points) {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "yellow";
+    ctx.lineWidth = 2;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    let amberDetected = false;
-
-    predictions.forEach(pred => {
-        // 🟢 琥珀っぽいものを「bottle」または「stone」として検出
-        if (pred.class === "bottle" || pred.class === "stone") {
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 4;
-            ctx.strokeRect(pred.bbox[0], pred.bbox[1], pred.bbox[2], pred.bbox[3]);
-
-            amberDetected = true;
-        }
+    points.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+        ctx.stroke();
     });
-
-    // 🔹 認識できたかを画面に表示
-    if (amberDetected) {
-        statusText.innerText = "✅ 琥珀を検出しました！";
-        statusText.style.color = "green";
-    } else {
-        statusText.innerText = "❌ 琥珀は見つかりませんでした。";
-        statusText.style.color = "red";
-    }
-
-    requestAnimationFrame(() => detect(model));
 }
 
-// 📸 画像保存機能（ボタンを押したとき）
-saveBtn.addEventListener("click", () => {
-    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL("image/png");
-
-    const link = document.createElement("a");
-    link.href = imageData;
-    link.download = `amber_${Date.now()}.png`;
-    link.click();
+// 📸 写真撮影（タップでスクリーンショット）
+captureBtn.addEventListener("click", () => {
+    const imgUrl = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = imgUrl;
+    a.download = "capture.png";
+    a.click();
 });
 
-// 🎯 カメラ＆AI起動
-(async function () {
-    await setupCamera();
-    const model = await loadModel();
-    detect(model);
-})();
+// 🎥 録画開始
+recordBtn.addEventListener("click", () => {
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(video.srcObject);
+    mediaRecorder.ondataavailable = event => recordedChunks.push(event.data);
+    mediaRecorder.onstop = saveRecording;
+    mediaRecorder.start();
+    recordBtn.disabled = true;
+    stopBtn.disabled = false;
+});
+
+// ⏹️ 録画停止
+stopBtn.addEventListener("click", () => {
+    mediaRecorder.stop();
+    recordBtn.disabled = false;
+    stopBtn.disabled = true;
+});
+
+// 📥 録画データをダウンロード
+function saveRecording() {
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    downloadLink.href = url;
+    downloadLink.download = "recorded_video.webm";
+    downloadLink.style.display = "block";
+    downloadLink.click();
+}
