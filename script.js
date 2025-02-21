@@ -7,15 +7,21 @@ const resultText = document.getElementById("result");
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
     .then(stream => {
         video.srcObject = stream;
-        requestAnimationFrame(detectAmber);
+        video.addEventListener("loadedmetadata", () => {
+            // 📌 カメラサイズを取得して canvas に設定
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            requestAnimationFrame(detectAmber);
+        });
     })
     .catch(err => console.error("カメラ取得失敗:", err));
 
 // 🎯 リアルタイム AI判定（毎秒処理）
 function detectAmber() {
+    // 📌 正しいサイズで描画
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
     let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    
     let amberPixels = countAmberPixels(imgData);
     let totalPixels = imgData.data.length / 4;
     let isAmber = isAmberDetected(amberPixels, totalPixels);
