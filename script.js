@@ -1,3 +1,4 @@
+/* script.js */
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -9,7 +10,7 @@ async function startCamera() {
 }
 
 async function loadModel() {
-    return await tf.loadGraphModel('model/model.json'); // 学習済みモデルをロード
+    return await tf.loadGraphModel('https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2/default/1');
 }
 
 async function detectAmber(model) {
@@ -18,31 +19,36 @@ async function detectAmber(model) {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const tensor = tf.browser.fromPixels(canvas)
-        .resizeNearestNeighbor([224, 224])
+    const tensor = tf.browser.fromPixels(video)
+        .resizeNearestNeighbor([300, 300])
         .toFloat()
-        .expandDims();
-    
+        .expandDims(0);
+
     const predictions = await model.executeAsync(tensor);
     const boxes = predictions[1].arraySync()[0]; // バウンディングボックス
-    const scores = predictions[2].arraySync()[0]; // 信頼度スコア
-    
+    const scores = predictions[2].arraySync()[0]; // 信頼度
+    const classes = predictions[3].arraySync()[0]; // クラスID
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     let found = false;
     for (let i = 0; i < boxes.length; i++) {
-        if (scores[i] > 0.5) { // しきい値 0.5 以上を琥珀と判定
-            found = true;
+        if (scores[i] > 0.5) { // 信頼度50%以上
             const [ymin, xmin, ymax, xmax] = boxes[i];
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 4;
             ctx.strokeRect(xmin * canvas.width, ymin * canvas.height, (xmax - xmin) * canvas.width, (ymax - ymin) * canvas.height);
+
+            // 一時的に「瓶（bottle）」を琥珀として判定
+            if (classes[i] === 44) { // クラスID 44 = bottle（参考: COCO dataset）
+                found = true;
+            }
         }
     }
-    
+
     if (found) {
-        statusText.innerText = "琥珀が見つかりました！";
+        statusText.innerText = "琥珀（っぽいもの）が見つかりました！";
         statusText.style.color = 'green';
     } else {
         statusText.innerText = "琥珀は見つかりませんでした...";
