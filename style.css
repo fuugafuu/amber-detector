@@ -1,20 +1,29 @@
 body {
-    text-align: center;
-    font-family: Arial, sans-serif;
+    margin: 0;
+    overflow: hidden;
+    background: black;
 }
 
-video {
-    width: 100%;
-    max-width: 600px;
-    border: 2px solid black;
+video, canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
 }
 
-canvas {
-    display: none;
+#controls {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 10px;
 }
 
 button {
-    padding: 10px 20px;
     font-size: 16px;
-    margin-top: 10px;
+    margin: 5px;
+    padding: 10px;
 }
