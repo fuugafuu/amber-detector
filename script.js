@@ -65,3 +65,28 @@ async function setupCamera() {
         alert("カメラが使用できません。設定を確認してください。");
     }
 }
+const imageInput = document.getElementById("imageInput");
+const preview = document.getElementById("preview");
+
+imageInput.addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        preview.src = e.target.result;
+        preview.style.display = "block";
+
+        // 画像をロードしてAIで解析
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = async () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            const model = await loadModel();
+            detect(model);
+        };
+    };
+    reader.readAsDataURL(file);
+});
