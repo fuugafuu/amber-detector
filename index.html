@@ -3,83 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>琥珀検出AI</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <style>
-        body { text-align: center; }
-        video { border: 1px solid black; width: 80%; max-width: 640px; }
-        canvas { position: absolute; top: 0; left: 0; }
-        .container { position: relative; display: inline-block; }
-        .bounding-box { position: absolute; border: 2px solid red; }
-    </style>
+    <title>琥珀探しAI</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>琥珀検出AI</h1>
-    <div class="container">
-        <video id="video" autoplay playsinline></video>
-        <canvas id="canvas"></canvas>
-    </div>
-    <p id="statusText">カメラを起動しています...</p>
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const statusText = document.getElementById('statusText');
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <input type="file" id="imageInput" accept="image/*">
+    <p id="statusText">カメラを起動中...</p>
 
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-        }
-
-        async function loadModel() {
-            return await tf.loadGraphModel('https://your-model-url/model.json'); // 学習済み物体検出モデル
-        }
-
-        async function detectAmber(model) {
-            if (video.videoWidth === 0 || video.videoHeight === 0) return;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const tensor = tf.browser.fromPixels(canvas)
-                .resizeNearestNeighbor([224, 224])
-                .toFloat()
-                .expandDims();
-            
-            const predictions = await model.executeAsync(tensor);
-            const boxes = predictions[1].arraySync()[0]; // バウンディングボックス
-            const scores = predictions[2].arraySync()[0]; // 信頼度スコア
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            let found = false;
-            for (let i = 0; i < boxes.length; i++) {
-                if (scores[i] > 0.5) { // しきい値 0.5 以上を琥珀と判定
-                    found = true;
-                    const [ymin, xmin, ymax, xmax] = boxes[i];
-                    ctx.strokeStyle = 'red';
-                    ctx.lineWidth = 4;
-                    ctx.strokeRect(xmin * canvas.width, ymin * canvas.height, (xmax - xmin) * canvas.width, (ymax - ymin) * canvas.height);
-                }
-            }
-            
-            if (found) {
-                statusText.innerText = "琥珀が見つかりました！";
-                statusText.style.color = 'green';
-            } else {
-                statusText.innerText = "琥珀は見つかりませんでした...";
-                statusText.style.color = 'red';
-            }
-        }
-
-        async function main() {
-            await startCamera();
-            const model = await loadModel();
-            setInterval(() => detectAmber(model), 2000);
-        }
-
-        main();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script src="script.js"></script>
 </body>
 </html>
