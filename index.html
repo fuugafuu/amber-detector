@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>琥珀探しAI</title>
+    <title>琥珀検出AI</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
+    <h1>琥珀検出AI</h1>
+    <video id="camera" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <input type="file" id="imageInput" accept="image/*">
-    <p id="statusText">カメラを起動中...</p>
+    <button id="save-btn">保存</button>
+    <p id="status">カメラ起動中...</p>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
