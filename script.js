@@ -56,7 +56,7 @@ function filterRealAmber(points) {
         const imgData = ctx.getImageData(x - zoomSize / 2, y - zoomSize / 2, zoomSize, zoomSize);
         
         // 🏴‍☠️ さらに形状チェック（エッジ分析）
-        if (checkAmberShape(imgData, zoomSize, zoomSize)) {
+        if (checkAmberShape(imgData, zoomSize, zoomSize) && checkTransparency(imgData)) {
             realAmbers.push(point);
         }
     }
@@ -81,6 +81,25 @@ function checkAmberShape(imgData, width, height) {
 
     // **形が丸っぽかったらOK**
     return edgeCount > 5 && edgeCount < 50; 
+}
+
+// ✨ **透明度チェック（琥珀は光を通す）**
+function checkTransparency(imgData) {
+    let transparencyCount = 0;
+    let totalPixels = imgData.data.length / 4;
+
+    for (let i = 0; i < imgData.data.length; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        const brightness = (r + g + b) / 3;
+
+        // 光を通しやすい部分は、全体の明るさと近い
+        if (Math.abs(brightness - 150) < 20) {
+            transparencyCount++;
+        }
+    }
+
+    // 全体の30%以上が透明っぽかったらOK
+    return (transparencyCount / totalPixels) > 0.3;
 }
 
 // **ステップ③：「見せるのは本物っぽいものだけ」**
